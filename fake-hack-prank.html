@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Terminal</title>
+<style>
+  :root { --g:#33ff66; --r:#ff3b3b; --bg:#020a04; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--g);
+    font-family:"Courier New",monospace; overflow:hidden; -webkit-tap-highlight-color:transparent; }
+  #start { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; text-align:center; padding:24px; cursor:pointer; }
+  #start h1 { font-size:22px; margin:0 0 12px; }
+  #start p { opacity:.7; font-size:14px; margin:0; }
+  #term { position:fixed; inset:0; padding:14px 14px 90px; overflow:hidden; display:none;
+    font-size:13px; line-height:1.45; white-space:pre-wrap; word-break:break-word; }
+  #term .dim { opacity:.55; } #term .red { color:var(--r); } #term .bold { font-weight:bold; }
+  .bar { position:fixed; left:14px; right:14px; bottom:22px; display:none; }
+  .bar .lbl { font-size:12px; margin-bottom:6px; }
+  .track { height:14px; border:1px solid var(--g); }
+  .fill { height:100%; width:0%; background:var(--g); transition:width .25s linear; }
+  #alert { position:fixed; inset:0; background:#1a0000; color:var(--r); display:none;
+    flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px; }
+  #alert h1 { font-size:34px; margin:0 0 14px; animation:blink .5s steps(1) infinite; }
+  #alert p { font-size:15px; margin:6px 0; color:#ff9a9a; }
+  @keyframes blink { 50% { opacity:.15; } }
+  #reveal { position:fixed; inset:0; background:#fff; color:#111; display:none;
+    flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px;
+    font-family:system-ui,sans-serif; }
+  #reveal .big { font-size:64px; } #reveal h1 { font-size:30px; margin:10px 0; }
+  #reveal p { font-size:17px; color:#444; margin:4px 0; }
+  #reveal button { margin-top:22px; padding:12px 22px; font-size:16px; border:0; border-radius:10px;
+    background:#111; color:#fff; }
+  #lockbar { position:fixed; top:0; left:0; right:0; background:#3a0000; color:#ff9a9a;
+    font-size:12px; text-align:center; padding:6px 10px; display:none; letter-spacing:.3px;
+    border-bottom:1px solid #660000; z-index:5; }
+</style>
+</head>
+<body>
+
+<div id="start">
+  <h1 id="startTitle">SECURE CONNECTION</h1>
+  <p>tap anywhere to continue</p>
+</div>
+
+<div id="lockbar">⚠ DO NOT CLOSE THIS TAB — session active</div>
+<div id="term"></div>
+<div class="bar" id="bar"><div class="lbl" id="barLbl"></div><div class="track"><div class="fill" id="fill"></div></div></div>
+
+<div id="alert">
+  <h1>⚠ SYSTEM COMPROMISED ⚠</h1>
+  <p id="alertTarget"></p>
+  <p>Total access gained. Resistance is futile.</p>
+</div>
+
+<div id="reveal">
+  <div class="big">😂</div>
+  <h1 id="revealTitle">Gotcha!</h1>
+  <p>Nothing was hacked. Your phone is totally fine.</p>
+  <p>This was just a fake screen. Relax.</p>
+  <button onclick="location.reload()">Run it again</button>
+</div>
+
+<script>
+/* ---------- EDIT THESE ---------- */
+const FRIEND_NAME = "Ahmed";          // or open the page with ?name=Sara
+const DEVICE_NAME = "Phone";          // shows in the fake log
+/* -------------------------------- */
+
+const params = new URLSearchParams(location.search);
+const NAME = (params.get("name") || FRIEND_NAME).slice(0, 30);
+
+const term = document.getElementById("term");
+const bar = document.getElementById("bar");
+const fill = document.getElementById("fill");
+const barLbl = document.getElementById("barLbl");
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function line(text, cls) {
+  const s = document.createElement("span");
+  if (cls) s.className = cls;
+  s.textContent = text + "\n";
+  term.appendChild(s);
+  // keep only what fits: trim old lines
+  while (term.scrollHeight > window.innerHeight - 70 && term.firstChild) term.removeChild(term.firstChild);
+}
+async function type(text, cls, speed = 18) {
+  const s = document.createElement("span");
+  if (cls) s.className = cls;
+  term.appendChild(s);
+  for (const ch of text) { s.textContent += ch; await sleep(speed); }
+  s.textContent += "\n";
+}
+async function progress(label, ms) {
+  bar.style.display = "block"; barLbl.textContent = label; fill.style.transition = "none"; fill.style.width = "0%";
+  await sleep(30);
+  const steps = 20;
+  for (let i = 1; i <= steps; i++) {
+    fill.style.transition = "width .25s linear";
+    fill.style.width = (i / steps * 100) + "%";
+    barLbl.textContent = label + " " + Math.round(i / steps * 100) + "%";
+    await sleep(ms / steps);
+  }
+  bar.style.display = "none";
+}
+const hex = n => Array.from({length:n}, () => Math.floor(Math.random()*16).toString(16)).join("");
+
+let locked = false;
+
+function beforeUnloadTrap(e) {
+  if (!locked) return;
+  e.preventDefault();
+  e.returnValue = "";
+  return "";
+}
+function blockContextMenu(e) { if (locked) e.preventDefault(); }
+
+window.addEventListener("beforeunload", beforeUnloadTrap);
+document.addEventListener("contextmenu", blockContextMenu);
+
+async function run() {
+  document.getElementById("start").style.display = "none";
+  term.style.display = "block";
+  document.getElementById("lockbar").style.display = "block";
+  locked = true;
+  try { if (navigator.vibrate) navigator.vibrate(60); } catch(e) {}
+  try { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(()=>{}); } catch(e) {}
+
+  await type("root@darknet:~# ./breach.sh --target \"" + NAME + "\"", "bold");
+  await sleep(400);
+  line("[*] Initializing exploit framework v3.1.4");
+  await sleep(300);
+  line("[*] Scanning for open ports...", "dim");
+  for (const p of ["22/tcp  closed", "80/tcp  filtered", "443/tcp open", "5555/tcp open"]) { line("    " + p, "dim"); await sleep(250); }
+  await progress("Bypassing firewall", 2200);
+  line("[+] Firewall bypassed");
+  await sleep(300);
+  await type("[*] Locating device: " + DEVICE_NAME + " of " + NAME + "...");
+  line("[+] Device found  (ID " + hex(8).toUpperCase() + ")");
+  await sleep(400);
+  await progress("Injecting payload", 2400);
+  line("[+] Payload delivered");
+  line("");
+  for (let i = 0; i < 9; i++) { line(hex(8) + " " + hex(8) + " " + hex(8) + " " + hex(8), "dim"); await sleep(110); }
+  await sleep(300);
+  await progress("Accessing camera", 2400);
+  line("[+] Camera: ACCESS GRANTED (fake)", "red");
+  await sleep(300);
+  await progress("Downloading messages", 2400);
+  line("[+] 1,337 messages found (not really)");
+  await sleep(300);
+  await progress("Reading secrets", 2000);
+  line("[!] WARNING: trace detected", "red");
+  await sleep(600);
+  for (let i = 0; i < 12; i++) { line("ERROR 0x" + hex(6) + " :: ACCESS OVERRIDE", "red"); await sleep(90); }
+  await sleep(400);
+
+  term.style.display = "none";
+  const a = document.getElementById("alert");
+  document.getElementById("alertTarget").textContent = "TARGET: " + NAME.toUpperCase();
+  a.style.display = "flex";
+  try { if (navigator.vibrate) navigator.vibrate([200,100,200]); } catch(e) {}
+  await sleep(3200);
+
+  a.style.display = "none";
+  locked = false;
+  document.getElementById("lockbar").style.display = "none";
+  try { if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(()=>{}); } catch(e) {}
+  document.getElementById("revealTitle").textContent = "Gotcha, " + NAME + "!";
+  document.getElementById("reveal").style.display = "flex";
+}
+
+document.getElementById("start").addEventListener("click", run, { once: true });
+</script>
+</body>
+</html>
